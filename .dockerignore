@@ -1,0 +1,11 @@
+node_modules
+.next
+.vercel
+.git
+.gitignore
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+Dockerfile
+docker-compose.yml
+README_DEPLOY.md
