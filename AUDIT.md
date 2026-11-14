@@ -38,8 +38,8 @@ Résultat après correction : `tsc` ✅, `next lint` ✅ (0 warning), `next buil
    - `next@14.2.35` (dernière 14.x) : advisories ouvertes, corrigées seulement en 15/16. La plupart visent l'App Router, `next/image`, le middleware, les Server Actions ou les rewrites, absents de ce projet, donc l'exposition réelle est faible. Prévoir quand même la migration vers Next 15+ (pages router supporté).
    - `firebase@10` → `undici`, `@grpc/grpc-js` vulnérables. Passer à `firebase@11`/`12` (API modulaire identique pour ce code).
    - `eslint@8` n'est plus maintenu → ESLint 9 avec la migration Next.
-2. **Aucun test ni CI** : ajouter les tests de règles (`@firebase/rules-unit-testing`, cf. tableau ci-dessus) et un workflow GitHub Actions `lint + build + rules`.
-3. **Validation du schéma dans les règles** : `create` n'impose ni les champs autorisés (`keys().hasOnly([...])`) ni de type/longueur pour `title` → un utilisateur peut stocker des données arbitraires (taille jusqu'à 1 Mo) dans ses propres documents.
-4. **Auth anonyme automatique** sur `/demo` : chaque visite crée un compte anonyme. Activer App Check et le nettoyage automatique des comptes anonymes, ou retirer la connexion automatique.
-5. **Test émulateur de `deploy_firestore.sh`** : il ne fait que deux `curl` sur des endpoints REST (dont un inexistant, cf. l'ancien log) et ne teste pas les règles. À remplacer par les tests du point 2.
+2. ✅ *Fait (étape 2)* — **Aucun test ni CI** : ajouter les tests de règles (`@firebase/rules-unit-testing`, cf. tableau ci-dessus) et un workflow GitHub Actions `lint + build + rules`.
+3. ✅ *Fait (étape 2)* — **Validation du schéma dans les règles** : `create` n'impose ni les champs autorisés (`keys().hasOnly([...])`) ni de type/longueur pour `title` → un utilisateur peut stocker des données arbitraires (taille jusqu'à 1 Mo) dans ses propres documents.
+4. ✅ *Fait (étape 2 : connexion Google + liste `admins`)* — **Auth anonyme automatique** sur `/demo` : chaque visite crée un compte anonyme. Activer App Check et le nettoyage automatique des comptes anonymes, ou retirer la connexion automatique.
+5. ✅ *Remplacé par `npm test`* — **Test émulateur de `deploy_firestore.sh`** : il ne fait que deux `curl` sur des endpoints REST (dont un inexistant, cf. l'ancien log) et ne teste pas les règles. À remplacer par les tests du point 2.
 6. **En-têtes de sécurité HTTP** (CSP, `X-Frame-Options`, etc.) absents de `next.config.js` / `vercel.json`.
