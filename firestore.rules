@@ -2,19 +2,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() { return request.auth != null; }
-    function isOwner() { return isSignedIn() && request.auth.uid == resource.data.ownerId; }
-    function isOwnerForCreate() { return isSignedIn() && request.auth.uid == request.resource.data.ownerId; }
+    // Membre de l'équipe : compte non anonyme ET document admins/{uid} présent.
+    function isStaff() {
+      return isSignedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function isOwner() { return isStaff() && request.auth.uid == resource.data.ownerId; }
+
+    function validItem(d) {
+      return d.keys().hasOnly(['title', 'ownerId', 'createdAt'])
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 200
+        && d.ownerId is string;
+    }
 
     match /{document=**} { allow read, write: if false; }
 
+    // Liste de l'équipe : gérée uniquement depuis la console Firebase (Admin SDK).
+    match /admins/{uid} {
+      allow get: if isSignedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+
+    // Profil utilisateur : l'ID du document doit être l'UID de l'utilisateur.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
     }
-    match /private/{collection}/{doc} {
-      allow read, update, delete: if isOwner();
-      allow create: if isOwnerForCreate();
+
+    // Données privées : private/{space}/items/{itemId} (ex. private/demo/items/abc).
+    match /private/{space}/items/{itemId} {
+      allow read, delete: if isOwner();
+      allow create: if isStaff()
+        && request.resource.data.ownerId == request.auth.uid
+        && validItem(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isOwner()
+        && validItem(request.resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt;
     }
+
     match /public/{document=**} {
       allow read: if true;
       allow create, update, delete: if false;

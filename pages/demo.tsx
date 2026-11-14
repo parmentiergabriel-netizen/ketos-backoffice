@@ -1,50 +1,45 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
-import { auth, loginAnon, loginGoogle, waitUser } from "../lib/auth";
+import { getDb } from "../lib/firebase";
+import { logout } from "../lib/auth";
+import { useAuth } from "../components/AuthProvider";
 
 type Row = { id: string; title?: string };
 
+// Les éléments privés vivent dans private/demo/items/{id} (cf. firestore.rules).
+const ITEMS_PATH = "private/demo/items";
+export const TITLE_MAX = 200;
+
 export default function Demo() {
-  const [uid, setUid] = useState<string | null>(null);
+  const auth = useAuth();
+  const uid = auth.status === "staff" ? auth.user.uid : null;
   const [title, setTitle] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const u: any = await waitUser();
-        if (!u) {
-          await loginAnon();
-        }
-        const user: any = await waitUser();
-        setUid(user?.uid || null);
-        if (user?.uid) {
-          const q = query(collection(db, "private/demo"), where("ownerId", "==", user.uid));
-          const snap = await getDocs(q);
-          setRows(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
-        }
-      } catch (e: any) {
-        setError(e?.message || "error");
-      } finally {
-        setLoading(false);
-      }
-    };
-    run();
+  const loadRows = useCallback(async (ownerId: string) => {
+    const q = query(collection(getDb(), ITEMS_PATH), where("ownerId", "==", ownerId));
+    const snap = await getDocs(q);
+    setRows(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Row, "id">) })));
   }, []);
 
+  useEffect(() => {
+    if (!uid) return;
+    loadRows(uid)
+      .catch((e: any) => setError(e?.message || "error"))
+      .finally(() => setLoading(false));
+  }, [uid, loadRows]);
+
+  const clean = title.trim();
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!uid) return;
+    if (!uid || !clean || clean.length > TITLE_MAX) return;
     try {
-      await addDoc(collection(db, "private/demo"), { title, ownerId: uid, createdAt: serverTimestamp() });
+      await addDoc(collection(getDb(), ITEMS_PATH), { title: clean, ownerId: uid, createdAt: serverTimestamp() });
       setTitle("");
-      const q = query(collection(db, "private/demo"), where("ownerId", "==", uid));
-      const snap = await getDocs(q);
-      setRows(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+      await loadRows(uid);
     } catch (e: any) {
       setError(e?.message || "error");
     }
@@ -54,14 +49,13 @@ export default function Demo() {
     <main style={{ padding: 24, maxWidth: 720, margin: "0 auto", fontFamily: "ui-sans-serif, system-ui" }}>
       <h1>Demo CRUD privé</h1>
       <p>Projet: {process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}</p>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button onClick={() => loginAnon()}>Login anonyme</button>
-        <button onClick={() => loginGoogle()}>Login Google</button>
-        <span>UID: {uid || "…"}</span>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+        <span>{auth.status === "staff" ? auth.user.email : "…"}</span>
+        <button onClick={() => logout()}>Déconnexion</button>
       </div>
       <form onSubmit={submit} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input placeholder="Titre" value={title} onChange={e => setTitle(e.target.value)} />
-        <button type="submit" disabled={!uid || !title}>Créer</button>
+        <input placeholder="Titre" value={title} maxLength={TITLE_MAX} onChange={e => setTitle(e.target.value)} />
+        <button type="submit" disabled={!uid || !clean}>Créer</button>
       </form>
       {loading && <p>Chargement…</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}

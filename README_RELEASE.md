@@ -3,15 +3,15 @@
 Ce pack contient tout le nécessaire pour déployer l'app, configurer Firestore, et lancer en local.
 
 ## Fichiers clés
-- `.env.local` — variables à compléter
+- `.env.example` — modèle des variables (copier en `.env.local`, jamais commité)
 - `firestore.rules` — règles Firestore prêtes prod
 - `deploy_firestore.sh` — déploiement automatisé (option test émulateur)
 - `vercel.json`, `Dockerfile`, `.dockerignore`, `docker-compose.yml`
 - `README_DEPLOY.md` — guide Vercel/Docker
-- `progress_vercel.png` — état d'avancement
+- `AUDIT.md` — audit du dépôt et corrections appliquées
 
 ## Démarrage rapide
-1. Complète `.env.local`
+1. `cp .env.example .env.local` puis complète-le
 2. Sur Vercel, ajoute les variables d'env et déploie
 3. Déploie les règles Firestore :
    ```bash
