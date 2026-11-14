@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { getDb } from "../lib/firebase";
 
 type Doc = { id: string; [key: string]: any };
 
@@ -12,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     const run = async () => {
       try {
-        const snap = await getDocs(collection(db, "public"));
+        const snap = await getDocs(collection(getDb(), "public"));
         const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setDocs(rows);
       } catch (e: any) {

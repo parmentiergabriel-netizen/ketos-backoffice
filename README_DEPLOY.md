@@ -15,7 +15,8 @@
 5. Fais un smoke test CRUD sur Firestore en production.
 
 ## Docker
-1. Place `.env.local` à la racine du projet.
-2. Lance `docker compose up --build -d`.
+1. Copie `.env.example` en `.env.local` à la racine et complète-le.
+2. Lance `docker compose --env-file .env.local up --build -d`
+   (les variables `NEXT_PUBLIC_*` sont figées dans le bundle au build : elles sont passées en build args).
 3. Accède à http://localhost:3000.
 4. Pour les logs : `docker compose logs -f`.

@@ -7,6 +7,18 @@ WITH_EMULATOR="${WITH_EMULATOR:-false}"
 
 say() { printf "%s\n" "$*"; }
 
+usage() { say "Usage: $0 [-p PROJECT_ID] [-e]   (-e : teste aussi les règles dans l'émulateur)"; }
+
+while getopts ":p:eh" opt; do
+  case "$opt" in
+    p) PROJECT_ID="$OPTARG" ;;
+    e) WITH_EMULATOR="true" ;;
+    h) usage; exit 0 ;;
+    *) usage; exit 1 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
 require_java() {
   if ! command -v java >/dev/null 2>&1; then
     say "❌ Java non trouvé";
@@ -45,7 +57,8 @@ deploy_rules() {
 start_emulator_and_test() {
   say "🧪 Lancement de l'émulateur Firestore en arrière-plan (port 8080)..."
   firebase emulators:start --only firestore --project "${PROJECT_ID}" > .emulator.log 2>&1 &
-  EMU_PID="$(jobs -p | tail -n1 || true)"
+  EMU_PID="$!"
+  trap 'kill "${EMU_PID}" 2>/dev/null || true' EXIT
   if [[ -z "${EMU_PID:-}" ]]; then
     # Secours: tente de récupérer un PID écoutant sur 8080 (lsof requis)
     if command -v lsof >/dev/null 2>&1; then
@@ -92,4 +105,4 @@ main() {
   say "🎉 Terminé."
 }
 
-main "$@"
+main

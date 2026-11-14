@@ -1,10 +1,10 @@
 Install
-pnpm i || yarn || npm i
+npm ci
 Dev
-pnpm dev || yarn dev || npm run dev
+npm run dev
 Build
-pnpm build || yarn build || npm run build
-Env
+npm run build
+Env (copier .env.example en .env.local)
 Set NEXT_PUBLIC_FIREBASE_API_KEY
 Set NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 Set NEXT_PUBLIC_FIREBASE_PROJECT_ID

@@ -4,17 +4,23 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isOwner() { return isSignedIn() && request.auth.uid == resource.data.ownerId; }
     function isOwnerForCreate() { return isSignedIn() && request.auth.uid == request.resource.data.ownerId; }
+    function ownerUnchanged() { return request.resource.data.ownerId == resource.data.ownerId; }
 
     match /{document=**} { allow read, write: if false; }
 
+    // Profil utilisateur : l'ID du document doit être l'UID de l'utilisateur.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
     }
-    match /private/{collection}/{doc} {
-      allow read, update, delete: if isOwner();
+
+    // Données privées : private/{space}/items/{itemId} (ex. private/demo/items/abc).
+    match /private/{space}/items/{itemId} {
+      allow read, delete: if isOwner();
       allow create: if isOwnerForCreate();
+      allow update: if isOwner() && ownerUnchanged();
     }
+
     match /public/{document=**} {
       allow read: if true;
       allow create, update, delete: if false;

@@ -3,9 +3,9 @@ node_modules
 .vercel
 .git
 .gitignore
-npm-debug.log
-yarn-error.log
-pnpm-lock.yaml
+.env
+.env*.local
+*.log
 Dockerfile
 docker-compose.yml
 README_DEPLOY.md
