@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logout } from "../lib/auth";
 import { useAuth } from "./AuthProvider";
+import { useItems } from "./ItemsProvider";
 import { Icon, IconName } from "./ui/Icon";
 import { Brand } from "./ui/Logo";
 import { currentTheme, setTheme, Theme } from "./ui/theme";
@@ -34,6 +35,8 @@ function useTheme(): [Theme | null, () => void] {
   return [theme, toggle];
 }
 
+const ITEMS_GROUP = "Mes éléments";
+
 type Command = { id: string; group: string; label: string; icon: IconName; hint?: string; run: () => void };
 
 function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: () => void; commands: Command[] }) {
@@ -47,7 +50,10 @@ function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: (
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return needle ? commands.filter(c => c.label.toLowerCase().includes(needle)) : commands;
+    const matches = needle ? commands.filter(c => c.label.toLowerCase().includes(needle)) : commands;
+    // Les éléments sont nombreux : 3 récents sans recherche, 8 résultats au plus avec.
+    let shownItems = 0;
+    return matches.filter(c => c.group !== ITEMS_GROUP || ++shownItems <= (needle ? 8 : 3));
   }, [q, commands]);
 
   if (!open) return null;
@@ -66,7 +72,7 @@ function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: (
       <div className="cmdk" role="dialog" aria-label="Palette de commandes" onMouseDown={e => e.stopPropagation()}>
         <div className="cmdk-input">
           <Icon name="search" />
-          <input ref={inputRef} value={q} placeholder="Rechercher une action, une page…" onKeyDown={onKey}
+          <input ref={inputRef} value={q} placeholder="Rechercher une page, une action, un élément…" onKeyDown={onKey}
             onChange={e => { setQ(e.target.value); setActive(0); }} />
           <span className="kbd">Échap</span>
         </div>
@@ -99,6 +105,7 @@ function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: (
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const auth = useAuth();
+  const { items } = useItems();
   const [theme, toggleTheme] = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mac, setMac] = useState(true);
@@ -119,8 +126,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     ...NAV.map(n => ({ id: n.href, group: "Navigation", label: n.label, icon: n.icon, run: () => router.push(n.href) })),
     { id: "new", group: "Actions", label: "Créer un élément", icon: "plus", hint: "N", run: () => router.push("/demo?new=1") },
     { id: "theme", group: "Actions", label: theme === "dark" ? "Passer en thème clair" : "Passer en thème sombre", icon: theme === "dark" ? "sun" : "moon", run: toggleTheme },
+    ...items.map(it => ({ id: `item-${it.id}`, group: ITEMS_GROUP, label: it.title, icon: "sparkle" as IconName, run: () => router.push(`/demo?focus=${it.id}`) })),
     { id: "logout", group: "Compte", label: "Se déconnecter", icon: "logout", run: () => { logout(); } },
-  ], [router, theme, toggleTheme]);
+  ], [router, theme, toggleTheme, items]);
 
   const user = auth.status === "staff" ? auth.user : null;
   const navLinks = NAV.map(n => (

@@ -4,7 +4,8 @@ import { useAuth } from "../components/AuthProvider";
 import { Icon, IconName } from "../components/ui/Icon";
 import { Whale } from "../components/ui/Logo";
 import { useCountUp } from "../components/ui/fx";
-import { countPublic, dailyCounts, hue, Item, listItems, relativeTime, startOfDay } from "../lib/items";
+import { useItems } from "../components/ItemsProvider";
+import { countPublic, dailyCounts, hue, relativeTime, startOfDay } from "../lib/items";
 
 const DAY = 86_400_000;
 
@@ -110,21 +111,18 @@ function ActivityChart({ data, loading }: { data: { day: Date; count: number }[]
 export default function Dashboard() {
   const auth = useAuth();
   const user = auth.status === "staff" ? auth.user : null;
-  const [items, setItems] = useState<Item[]>([]);
-  const [publicCount, setPublicCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { items, loading: itemsLoading, error } = useItems();
+  const [publicCount, setPublicCount] = useState<number | null>(null);
   const [now, setNow] = useState<Date | null>(null);
-
-  useEffect(() => setNow(new Date()), []);
+  const loading = itemsLoading || publicCount === null;
 
   useEffect(() => {
-    if (!user) return;
-    Promise.all([listItems(user.uid), countPublic().catch(() => 0)])
-      .then(([its, pub]) => { setItems(its); setPublicCount(pub); })
-      .catch((e: any) => setError(e?.message || "Erreur de chargement"))
-      .finally(() => setLoading(false));
-  }, [user]);
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => { countPublic().catch(() => 0).then(setPublicCount); }, []);
 
   const stats = useMemo(() => {
     const ref = now ?? new Date(0);
@@ -174,7 +172,7 @@ export default function Dashboard() {
         <Kpi loading={loading} icon="list" label="Éléments" value={items.length} sub="au total" spark={stats.daily.map(d => d.count)} />
         <Kpi loading={loading} icon="calendar" label="7 derniers jours" value={stats.last7} delta={Math.max(0, stats.week - stats.prevWeek)} sub="vs semaine précédente" />
         <Kpi loading={loading} icon="bolt" label="Série en cours" value={stats.streak} sub={stats.streak > 1 ? "jours d’affilée 🔥" : "jour actif"} />
-        <Kpi loading={loading} icon="globe" label="Documents publics" value={publicCount} sub="collection public" />
+        <Kpi loading={loading} icon="globe" label="Documents publics" value={publicCount ?? 0} sub="collection public" />
       </section>
 
       <section className="grid-2">

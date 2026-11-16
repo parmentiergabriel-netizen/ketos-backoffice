@@ -2,6 +2,7 @@ import type { AppProps } from "next/app";
 import Head from "next/head";
 import { AppShell } from "../components/AppShell";
 import { AuthProvider } from "../components/AuthProvider";
+import { ItemsProvider } from "../components/ItemsProvider";
 import { RequireStaff } from "../components/RequireStaff";
 import { ToastProvider } from "../components/ui/Toasts";
 import "../styles/globals.css";
@@ -16,9 +17,11 @@ export default function App({ Component, pageProps }: AppProps) {
       <AuthProvider>
         <ToastProvider>
           <RequireStaff>
-            <AppShell>
-              <Component {...pageProps} />
-            </AppShell>
+            <ItemsProvider>
+              <AppShell>
+                <Component {...pageProps} />
+              </AppShell>
+            </ItemsProvider>
           </RequireStaff>
         </ToastProvider>
       </AuthProvider>

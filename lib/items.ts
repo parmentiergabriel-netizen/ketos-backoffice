@@ -1,5 +1,6 @@
 import {
-  addDoc, collection, deleteDoc, doc, getCountFromServer, getDocs, query, serverTimestamp, Timestamp, where,
+  collection, deleteDoc, doc, getCountFromServer, onSnapshot, query, QueryDocumentSnapshot,
+  serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
 
@@ -9,22 +10,31 @@ export const TITLE_MAX = 200;
 
 export type Item = { id: string; title: string; createdAt: Date | null };
 
-export async function listItems(ownerId: string): Promise<Item[]> {
-  const q = query(collection(getDb(), ITEMS_PATH), where("ownerId", "==", ownerId));
-  const snap = await getDocs(q);
-  return snap.docs
+const ownedBy = (ownerId: string) => query(collection(getDb(), ITEMS_PATH), where("ownerId", "==", ownerId));
+
+function toItems(docs: QueryDocumentSnapshot[]): Item[] {
+  return docs
     .map(d => {
-      const data = d.data();
+      // estimate : un createdAt encore en attente (écriture locale) prend l'heure locale au lieu de null.
+      const data = d.data({ serverTimestamps: "estimate" });
       const ts = data.createdAt as Timestamp | undefined;
       return { id: d.id, title: String(data.title ?? d.id), createdAt: ts?.toDate?.() ?? null };
     })
     .sort((a, b) => (b.createdAt?.getTime() ?? Infinity) - (a.createdAt?.getTime() ?? Infinity));
 }
 
-export async function createItem(ownerId: string, title: string): Promise<Item> {
-  const ref = await addDoc(collection(getDb(), ITEMS_PATH), { title, ownerId, createdAt: serverTimestamp() });
-  return { id: ref.id, title, createdAt: new Date() };
+/** Abonnement temps réel aux éléments de `ownerId` ; retourne la fonction de désabonnement. */
+export function watchItems(ownerId: string, onData: (items: Item[]) => void, onError: (e: Error) => void) {
+  return onSnapshot(ownedBy(ownerId), snap => onData(toItems(snap.docs)), onError);
 }
+
+export const renameItem = (id: string, title: string) => updateDoc(doc(getDb(), ITEMS_PATH, id), { title });
+
+/** Identifiant généré côté client : l'UI connaît l'élément avant même la réponse du serveur. */
+export const newItemId = () => doc(collection(getDb(), ITEMS_PATH)).id;
+
+export const createItem = (id: string, ownerId: string, title: string) =>
+  setDoc(doc(getDb(), ITEMS_PATH, id), { title, ownerId, createdAt: serverTimestamp() });
 
 export const removeItem = (id: string) => deleteDoc(doc(getDb(), ITEMS_PATH, id));
 

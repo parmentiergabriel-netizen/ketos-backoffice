@@ -1,10 +1,11 @@
 import { useRouter } from "next/router";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../components/AuthProvider";
+import { useItems } from "../components/ItemsProvider";
 import { confetti } from "../components/ui/fx";
 import { Icon } from "../components/ui/Icon";
 import { useToast } from "../components/ui/Toasts";
-import { createItem, hue, Item, listItems, relativeTime, removeItem, TITLE_MAX } from "../lib/items";
+import { createItem, hue, Item, newItemId, relativeTime, removeItem, renameItem, TITLE_MAX } from "../lib/items";
 
 const MILESTONES = new Set([1, 10, 25, 50, 100, 250, 500, 1000]);
 
@@ -22,35 +23,33 @@ export default function Items() {
   const uid = auth.status === "staff" ? auth.user.uid : null;
 
   const [title, setTitle] = useState("");
-  const [items, setItems] = useState<Item[]>([]);
+  const { items, loading, error } = useItems();
   const [hidden, setHidden] = useState<Set<string>>(new Set()); // suppressions en attente (annulables)
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const [fresh, setFresh] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [now, setNow] = useState(() => new Date());
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Rafraîchit les « il y a x min » chaque minute.
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t); }, []);
 
+  // /demo?new=1 (raccourci N, palette, tableau de bord) : focus sur la saisie.
+  // /demo?focus=<id> (palette) : fait défiler jusqu'à l'élément et le met en avant.
   useEffect(() => {
-    if (!uid) return;
-    listItems(uid)
-      .then(setItems)
-      .catch((e: any) => setError(e?.message || "Erreur de chargement"))
-      .finally(() => setLoading(false));
-  }, [uid]);
-
-  // /demo?new=1 (raccourci N, palette, bouton du tableau de bord) : focus direct sur la saisie.
-  useEffect(() => {
-    if (router.query.new) {
+    const { new: isNew, focus } = router.query;
+    if (isNew) {
       inputRef.current?.focus();
       router.replace("/demo", undefined, { shallow: true });
+    } else if (typeof focus === "string" && !loading) {
+      setFilter("");
+      setFresh(focus);
+      setTimeout(() => document.getElementById(`item-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+      router.replace("/demo", undefined, { shallow: true });
     }
-  }, [router]);
+  }, [router, loading]);
 
   const clean = title.trim();
   const tooLong = clean.length > TITLE_MAX;
@@ -64,12 +63,11 @@ export default function Items() {
     e.preventDefault();
     if (!uid || !clean || tooLong || saving) return;
     setSaving(true);
-    setError(null);
     try {
-      const created = await createItem(uid, clean);
-      setItems(prev => [created, ...prev]);
-      setFresh(created.id);
+      const id = newItemId();
+      setFresh(id);
       setTitle("");
+      await createItem(id, uid, clean);
       const n = total + 1;
       if (MILESTONES.has(n)) {
         confetti();
@@ -78,6 +76,7 @@ export default function Items() {
         toast({ kind: "success", message: "Élément créé" });
       }
     } catch (e: any) {
+      setTitle(clean);
       toast({ kind: "error", message: e?.message || "Création impossible" });
     } finally {
       setSaving(false);
@@ -99,10 +98,26 @@ export default function Items() {
       action: { label: "Annuler", run: restore },
       onExpire: () => {
         removeItem(it.id)
-          .then(() => { setItems(prev => prev.filter(x => x.id !== it.id)); restore(); })
+          .then(restore) // le temps réel retire l'élément de la liste
           .catch((e: any) => { restore(); toast({ kind: "error", message: e?.message || "Suppression impossible" }); });
       },
     });
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const { id, value } = editing;
+    const next = value.trim();
+    const before = items.find(i => i.id === id)?.title;
+    setEditing(null);
+    if (!next || next === before) return;
+    if (next.length > TITLE_MAX) { toast({ kind: "error", message: `${TITLE_MAX} caractères maximum` }); return; }
+    try {
+      await renameItem(id, next);
+      toast({ kind: "success", message: "Titre mis à jour" });
+    } catch (e: any) {
+      toast({ kind: "error", message: e?.message || "Modification impossible" });
+    }
   };
 
   return (
@@ -111,8 +126,9 @@ export default function Items() {
         <div>
           <div className="eyebrow">Espace privé</div>
           <h1>Éléments</h1>
-          <p>Visibles par toi seul·e. Appuie sur <span className="kbd">N</span> n’importe où pour en créer un.</p>
+          <p>Visibles par toi seul·e, synchronisés en temps réel. <span className="kbd">N</span> pour créer, double-clic pour renommer.</p>
         </div>
+        {!loading && !error && <span className="live">En direct</span>}
       </header>
 
       <form className="composer" onSubmit={submit}>
@@ -166,14 +182,29 @@ export default function Items() {
       ) : (
         <ul className="items">
           {visible.map((it, i) => (
-            <li key={it.id} className={`item ${fresh === it.id ? "fresh" : ""} ${leaving.has(it.id) ? "leaving" : ""}`}
+            <li key={it.id} id={`item-${it.id}`} className={`item ${fresh === it.id ? "fresh" : ""} ${leaving.has(it.id) ? "leaving" : ""}`}
               style={{ animationDelay: fresh === it.id ? undefined : `${Math.min(i, 10) * 35}ms` }}>
               <span className="glyph" style={{ background: hue(it.title) }}>{it.title.charAt(0).toUpperCase()}</span>
               <div className="body">
-                <div className="title" title={it.title}>{highlight(it.title, filter.trim())}</div>
+                {editing?.id === it.id ? (
+                  <input className="edit" autoFocus value={editing.value} aria-label="Nouveau titre"
+                    onChange={e => setEditing({ id: it.id, value: e.target.value })}
+                    onBlur={saveEdit}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setEditing(null);
+                    }} />
+                ) : (
+                  <div className="title" title="Double-clic pour modifier" onDoubleClick={() => setEditing({ id: it.id, value: it.title })}>
+                    {highlight(it.title, filter.trim())}
+                  </div>
+                )}
                 <div className="time">{relativeTime(it.createdAt, now)}</div>
               </div>
-              <button className="btn btn-ghost btn-icon del" aria-label={`Supprimer « ${it.title} »`} onClick={() => remove(it)}>
+              <button className="btn btn-ghost btn-icon del" aria-label={`Modifier « ${it.title} »`} onClick={() => setEditing({ id: it.id, value: it.title })}>
+                <Icon name="pencil" size={16} />
+              </button>
+              <button className="btn btn-ghost btn-icon del danger" aria-label={`Supprimer « ${it.title} »`} onClick={() => remove(it)}>
                 <Icon name="trash" size={16} />
               </button>
             </li>
