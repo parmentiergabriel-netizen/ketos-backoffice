@@ -12,6 +12,28 @@ const BUBBLES = Array.from({ length: 18 }, (_, i) => ({
   delay: -((i * 5) % 17),
 }));
 
+/** Traduit les erreurs de connexion Firebase en messages actionnables (null = rien à afficher). */
+function loginErrorMessage(e: any): ReactNode | null {
+  switch (e?.code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return null;
+    case "auth/unauthorized-domain":
+      return (
+        <>
+          Ce domaine n’est pas autorisé pour la connexion Google : <code>{location.hostname}</code>
+          <br />À ajouter dans Firebase → Authentication → Paramètres → Domaines autorisés.
+        </>
+      );
+    case "auth/popup-blocked":
+      return "La fenêtre de connexion a été bloquée par le navigateur. Autorise les pop-ups pour ce site, puis réessaie.";
+    case "auth/network-request-failed":
+      return "Connexion réseau impossible. Vérifie ta connexion et réessaie.";
+    default:
+      return e?.message || "Connexion impossible";
+  }
+}
+
 /** Décor commun : aurores, grille, bulles qui remontent et vagues. */
 function Ocean({ children }: { children: ReactNode }) {
   return (
@@ -35,7 +57,7 @@ function Ocean({ children }: { children: ReactNode }) {
 /** Affiche `children` seulement pour un membre de l'équipe connecté ; sinon écran de connexion. */
 export function RequireStaff({ children }: { children: ReactNode }) {
   const auth = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ReactNode | null>(null);
   const [pending, setPending] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -45,7 +67,7 @@ export function RequireStaff({ children }: { children: ReactNode }) {
     try {
       await loginGoogle();
     } catch (e: any) {
-      if (e?.code !== "auth/popup-closed-by-user") setError(e?.message || "Connexion impossible");
+      setError(loginErrorMessage(e));
     } finally {
       setPending(false);
     }
