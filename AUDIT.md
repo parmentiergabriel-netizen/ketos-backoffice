@@ -43,3 +43,29 @@ Résultat après correction : `tsc` ✅, `next lint` ✅ (0 warning), `next buil
 4. ✅ *Fait (étape 2 : connexion Google + liste `admins`)* — **Auth anonyme automatique** sur `/demo` : chaque visite crée un compte anonyme. Activer App Check et le nettoyage automatique des comptes anonymes, ou retirer la connexion automatique.
 5. ✅ *Remplacé par `npm test`* — **Test émulateur de `deploy_firestore.sh`** : il ne fait que deux `curl` sur des endpoints REST (dont un inexistant, cf. l'ancien log) et ne teste pas les règles. À remplacer par les tests du point 2.
 6. **En-têtes de sécurité HTTP** (CSP, `X-Frame-Options`, etc.) absents de `next.config.js` / `vercel.json`.
+
+---
+
+# Audit n° 3 — UX et design (16/11/2026)
+
+Périmètre : interface après la refonte « effet WOW » (commit 7b5b29a). 10 écrans capturés (clair/sombre, ordinateur/mobile) sur une copie locale avec données fictives ; `tsc`, `next lint`, `next build` ✅ ; `npm audit --omit=dev` : 1 critique, 6 hautes, 6 modérées (inchangé).
+
+Notes : Simplicité 5/10 · Intuitivité 5/10 · Beauté 7/10 · Technique 6/10.
+
+## Top 5
+1. **Réserver le dégradé « marée » à un usage par écran** (il est sur 9 types d'éléments) ; neutres teintés et encre pleine ailleurs.
+2. **Charger la police** (Inter est déclarée mais jamais chargée) via `next/font` + **contrastes** : `--text-faint` 2,9:1 en clair, 3,7:1 en sombre ; blanc sur bouton dégradé jusqu'à 2,2:1.
+3. **Tableau de bord compact** : supprimer le hero de 200 px et le KPI « Documents publics · collection public » ; 3 chiffres comparables + liste récente.
+4. **Liste groupée** (Aujourd'hui / Cette semaine / Plus tôt) dans une seule surface, saisie dans la liste, menu « ⋯ » visible, clic pour éditer (double-clic et survol cachent renommer/supprimer).
+5. **Menu compte** sur l'avatar : sur mobile, aucun moyen visible de se déconnecter.
+
+## Autres constats
+- Intuitivité : delta KPI qui masque les baisses (`Math.max(0, …)`) ; série remise à 0 chaque matin ; graphique déformé (`preserveAspectRatio="none"`, 300 px, jours sans mois) ; mini-courbe par jour sous un total ; palette ⌘K sans `scrollIntoView` ni rôles ARIA ; pas de création au doigt sur mobile ; thème « Système » impossible à retrouver ; suppression perdue si l'onglet est fermé pendant l'annulation ; obtention de l'accès par copie d'UID + console Firebase (→ « Demander l'accès » + page Équipe).
+- Simplicité : gamification (série, confettis, compteurs rejoués à chaque navigation) ; textes d'aide permanents (0/200, « Entrée pour valider », « Espace privé ») ; libellé « ESPACE » pour 2 liens ; vocabulaire technique (« Éléments », `/demo`, titre d'onglet unique) ; pastilles arc-en-ciel sans signification.
+- Beauté : tout est une carte ; mode sombre trop plat (#060E18 / #0C1826) ; 11 tailles de texte et graisses 550/650/750 ; emojis dans l'interface ; écran de connexion déséquilibré (aurore coupée, grille + bordure tournante en trop).
+- Technique : migration Next 15 / firebase 12 / ESLint 9 ; en-têtes de sécurité (CSP…) toujours absents ; ajouter des tests visuels Playwright.
+
+## Plan
+- **Lot 1 (~1 j)** : police, contrastes, menu compte + thème Système, delta/série/mini-courbe, retrait KPI publics et emojis, compteur conditionnel, titres d'onglet, palette au clavier.
+- **Lot 2 (~3 j)** : tableau de bord compact, liste groupée, marée limitée, échelle typo, sombre étagé, barre mobile ancrée avec « + », vocabulaire métier.
+- **Lot 3 (~3 j)** : demande d'accès + page Équipe, Next 15 / firebase 12 / ESLint 9, en-têtes de sécurité, tests visuels en CI.
