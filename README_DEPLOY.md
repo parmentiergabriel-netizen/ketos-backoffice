@@ -11,7 +11,7 @@
    - NEXT_PUBLIC_FIREBASE_APP_ID
    - NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 3. Déploie et vérifie les pages.
-4. Déploie `firestore.rules` depuis la CLI Firebase.
+4. Les règles Firestore se déploient depuis le dépôt `ketos` (voir README.md), jamais depuis ce dépôt.
 5. Fais un smoke test CRUD sur Firestore en production.
 
 ## Docker

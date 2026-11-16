@@ -1,3 +1,8 @@
+// ⚠️ NE PAS DÉPLOYER CE FICHIER.
+// Le backoffice partage le projet Firebase de l'app Ketos (ketos-staging / ketos-app).
+// Les règles déployées sont celles du dépôt `ketos` (firestore.rules, section « Backoffice »),
+// déployées par sa CI. Ce fichier n'en garde qu'une copie de la section backoffice pour les tests
+// locaux (npm test) : toute modification doit être reportée à l'identique dans le dépôt `ketos`.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,11 +29,6 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
-    // Profil utilisateur : l'ID du document doit être l'UID de l'utilisateur.
-    match /users/{userId} {
-      allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
-      allow create: if isSignedIn() && request.auth.uid == userId && request.resource.data.uid == userId;
-    }
 
     // Données privées : private/{space}/items/{itemId} (ex. private/demo/items/abc).
     match /private/{space}/items/{itemId} {

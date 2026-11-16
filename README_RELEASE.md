@@ -4,8 +4,7 @@ Ce pack contient tout le nécessaire pour déployer l'app, configurer Firestore,
 
 ## Fichiers clés
 - `.env.example` — modèle des variables (copier en `.env.local`, jamais commité)
-- `firestore.rules` — règles Firestore prêtes prod
-- `deploy_firestore.sh` — déploiement automatisé (option test émulateur)
+- `firestore.rules` — copie de la section backoffice des règles du dépôt `ketos` (tests uniquement, ne pas déployer)
 - `vercel.json`, `Dockerfile`, `.dockerignore`, `docker-compose.yml`
 - `README_DEPLOY.md` — guide Vercel/Docker
 - `AUDIT.md` — audit du dépôt et corrections appliquées
@@ -13,8 +12,4 @@ Ce pack contient tout le nécessaire pour déployer l'app, configurer Firestore,
 ## Démarrage rapide
 1. `cp .env.example .env.local` puis complète-le
 2. Sur Vercel, ajoute les variables d'env et déploie
-3. Déploie les règles Firestore :
-   ```bash
-   chmod +x deploy_firestore.sh
-   ./deploy_firestore.sh -p ketos-staging
-   ```
+3. Règles Firestore : elles se déploient depuis le dépôt `ketos` (voir README.md).

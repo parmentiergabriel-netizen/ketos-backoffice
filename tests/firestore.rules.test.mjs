@@ -61,11 +61,6 @@ describe("items privés", () => {
     assertFails(setDoc(doc(staff("alice"), `${ITEMS}/x`), item("alice", { createdAt: new Date(0) }))));
 });
 
-describe("users", () => {
-  it("création de son propre profil", () => assertSucceeds(setDoc(doc(staff("alice"), "users/alice"), { uid: "alice" })));
-  it("création du profil d'un autre refusée", () => assertFails(setDoc(doc(staff("alice"), "users/bob"), { uid: "alice" })));
-});
-
 describe("public", () => {
   it("lecture ouverte", () => assertSucceeds(getDoc(doc(env.unauthenticatedContext().firestore(), "public/p1"))));
   it("écriture interdite", () => assertFails(setDoc(doc(staff("alice"), "public/p2"), { x: 1 })));

@@ -29,7 +29,16 @@ npm test          # tests des règles Firestore dans l’émulateur (Java requis
 La CI GitHub (`.github/workflows/ci.yml`) lance tout ça à chaque push et pull request.
 
 ## Déploiement
-Voir `README_DEPLOY.md`. Après toute modification de `firestore.rules` :
-```bash
-./deploy_firestore.sh -p ketos-staging
-```
+Voir `README_DEPLOY.md`.
+
+### Règles Firestore
+Le backoffice partage le projet Firebase de l'app Ketos (`ketos-staging`, `ketos-app`).
+**Les règles déployées vivent dans le dépôt `ketos`** (`firestore.rules`, section « Backoffice ») et sont
+déployées par sa CI. Ne jamais lancer `firebase deploy --only firestore:rules` depuis ce dépôt : cela
+écraserait les règles de l'app.
+
+Le `firestore.rules` d'ici est une copie de cette section, utilisée par `npm test`. Pour modifier une règle :
+1. la changer ici et dans `ketos/firestore.rules` (à l'identique) ;
+2. mettre à jour les tests des deux côtés (`tests/firestore.rules.test.mjs` ici,
+   `tests/firestore.backoffice.rules.test.ts` dans `ketos`) ;
+3. ouvrir une PR sur `ketos` : sa CI déploie les règles.
