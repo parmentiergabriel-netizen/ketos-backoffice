@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { useRouter } from "next/router";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../components/AuthProvider";
@@ -8,6 +9,8 @@ import { useToast } from "../components/ui/Toasts";
 import { createItem, hue, Item, newItemId, relativeTime, removeItem, renameItem, TITLE_MAX } from "../lib/items";
 
 const MILESTONES = new Set([1, 10, 25, 50, 100, 250, 500, 1000]);
+/** Le compteur de caractères n'apparaît qu'à l'approche de la limite. */
+const COUNTER_FROM = TITLE_MAX - 40;
 
 function highlight(text: string, needle: string): ReactNode {
   if (!needle) return text;
@@ -71,7 +74,7 @@ export default function Items() {
       const n = total + 1;
       if (MILESTONES.has(n)) {
         confetti();
-        toast({ kind: "success", message: n === 1 ? "Premier élément créé — bienvenue à bord ! 🐋" : `${n} éléments ! Cap franchi 🎉`, duration: 4500 });
+        toast({ kind: "success", message: n === 1 ? "Premier élément créé. Bienvenue à bord !" : `${n} éléments : cap franchi !`, duration: 4500 });
       } else {
         toast({ kind: "success", message: "Élément créé" });
       }
@@ -122,6 +125,7 @@ export default function Items() {
 
   return (
     <div className="page" style={{ maxWidth: 800 }}>
+      <Head><title>Éléments · Ketos</title></Head>
       <header className="page-head">
         <div>
           <div className="eyebrow">Espace privé</div>
@@ -140,10 +144,13 @@ export default function Items() {
             {saving ? "…" : <><Icon name="plus" size={16} /> Créer</>}
           </button>
         </label>
-        <div className="meta">
-          <span>Entrée pour valider</span>
-          <span className={tooLong ? "over" : ""}>{clean.length}/{TITLE_MAX}</span>
-        </div>
+        {clean.length >= COUNTER_FROM && (
+          <div className="meta" aria-live="polite">
+            <span className={tooLong ? "over" : ""}>
+              {tooLong ? `${clean.length - TITLE_MAX} caractère${clean.length - TITLE_MAX > 1 ? "s" : ""} de trop` : `${TITLE_MAX - clean.length} caractères restants`}
+            </span>
+          </div>
+        )}
       </form>
 
       {error && <div className="card panel" style={{ color: "var(--danger)", marginBottom: 16 }}>{error}</div>}

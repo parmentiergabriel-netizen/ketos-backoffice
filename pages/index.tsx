@@ -1,3 +1,4 @@
+import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../components/AuthProvider";
@@ -5,7 +6,7 @@ import { Icon, IconName } from "../components/ui/Icon";
 import { Whale } from "../components/ui/Logo";
 import { useCountUp } from "../components/ui/fx";
 import { useItems } from "../components/ItemsProvider";
-import { countPublic, dailyCounts, hue, relativeTime, startOfDay } from "../lib/items";
+import { dailyCounts, hue, relativeTime, startOfDay } from "../lib/items";
 
 const DAY = 86_400_000;
 
@@ -18,8 +19,10 @@ function greeting(d: Date) {
 }
 
 function Spark({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values);
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 96},${34 - (v / max) * 30}`).join(" ");
+  // Échelle min → max : une courbe cumulée reste lisible même quand le total de départ est élevé.
+  const min = Math.min(...values);
+  const range = Math.max(1, Math.max(...values) - min);
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 96},${34 - ((v - min) / range) * 30}`).join(" ");
   return (
     <svg className="spark" viewBox="0 0 96 36" aria-hidden="true">
       <defs>
@@ -37,14 +40,15 @@ function Spark({ values }: { values: number[] }) {
 function Kpi({ icon, label, value, sub, delta, spark, loading }: {
   icon: IconName; label: string; value: number; sub?: string; delta?: number; spark?: number[]; loading: boolean;
 }) {
+  const trend = delta === undefined ? null : delta > 0 ? "up" : delta < 0 ? "down" : "flat";
   const shown = useCountUp(loading ? 0 : value);
   return (
     <div className="card kpi">
       <div className="label"><span className="ico"><Icon name={icon} size={15} /></span>{label}</div>
       {loading ? <div className="skeleton" style={{ height: 40, width: 80, marginTop: 10 }} /> : <div className="value">{shown}</div>}
       <div className="sub">
-        {delta !== undefined && !loading && (
-          <span className={`delta ${delta > 0 ? "up" : "flat"}`}>{delta > 0 ? `↑ +${delta}` : "="}</span>
+        {trend && !loading && (
+          <span className={`delta ${trend}`}>{trend === "up" ? `↑ +${delta}` : trend === "down" ? `↓ −${-delta!}` : "="}</span>
         )}{" "}
         {sub}
       </div>
@@ -112,9 +116,8 @@ export default function Dashboard() {
   const auth = useAuth();
   const user = auth.status === "staff" ? auth.user : null;
   const { items, loading: itemsLoading, error } = useItems();
-  const [publicCount, setPublicCount] = useState<number | null>(null);
   const [now, setNow] = useState<Date | null>(null);
-  const loading = itemsLoading || publicCount === null;
+  const loading = itemsLoading;
 
   useEffect(() => {
     setNow(new Date());
@@ -122,19 +125,22 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  useEffect(() => { countPublic().catch(() => 0).then(setPublicCount); }, []);
-
   const stats = useMemo(() => {
     const ref = now ?? new Date(0);
     const daily = dailyCounts(items, 14, ref);
     const week = daily.slice(7).reduce((a, d) => a + d.count, 0);
     const prevWeek = daily.slice(0, 7).reduce((a, d) => a + d.count, 0);
     const today = daily[13]?.count ?? 0;
+    const yesterday = daily[12]?.count ?? 0;
+    // La série compte jusqu'à hier si rien n'a encore été créé aujourd'hui (elle ne retombe pas à 0 chaque matin).
     let streak = 0;
-    for (let i = 13; i >= 0 && daily[i].count > 0; i--) streak++;
+    for (let i = today > 0 ? 13 : 12; i >= 0 && daily[i].count > 0; i--) streak++;
     const todayStart = startOfDay(ref).getTime();
     const last7 = items.filter(i => (i.createdAt?.getTime() ?? todayStart) >= todayStart - 6 * DAY).length;
-    return { daily, week, prevWeek, today, streak, last7 };
+    // Total cumulé jour par jour (la mini-courbe se termine sur le total affiché).
+    let running = items.length - daily.reduce((a, d) => a + d.count, 0);
+    const cumulative = daily.map(d => (running += d.count));
+    return { daily, week, prevWeek, today, yesterday, streak, last7, cumulative };
   }, [items, now]);
 
   const firstName = (user?.displayName || user?.email || "").split(/[\s@]/)[0];
@@ -146,18 +152,19 @@ export default function Dashboard() {
     : items.length === 0
       ? "Ton espace est prêt. Crée ton premier élément pour lancer le tableau de bord."
       : stats.streak > 1
-        ? `${stats.streak} jours d’activité d’affilée — belle lancée, garde le cap.`
+        ? `${stats.streak} jours d’activité d’affilée.`
         : stats.week > stats.prevWeek
           ? `Semaine plus active que la précédente : ${stats.week} éléments contre ${stats.prevWeek}.`
           : `${items.length} élément${items.length > 1 ? "s" : ""} au total. Prêt pour la suite ?`;
 
   return (
     <div className="page">
+      <Head><title>Tableau de bord · Ketos</title></Head>
       <section className="hero">
         <div className="hero-whale"><Whale size={260} color="#fff" /></div>
         <div style={{ position: "relative" }}>
           <div style={{ fontSize: 13, opacity: 0.8 }}>{dateLabel ?? " "}</div>
-          <h2 style={{ marginTop: 6 }}>{now ? greeting(now) : "Bonjour"}{firstName ? `, ${firstName}` : ""} 👋</h2>
+          <h2 style={{ marginTop: 6 }}>{now ? greeting(now) : "Bonjour"}{firstName ? `, ${firstName}` : ""}</h2>
           <p>{pitch}</p>
           <div className="actions">
             <Link href="/demo?new=1" className="btn solid"><Icon name="plus" size={16} /> Nouvel élément</Link>
@@ -169,10 +176,11 @@ export default function Dashboard() {
       {error && <div className="card panel" style={{ color: "var(--danger)", marginBottom: 20 }}>{error}</div>}
 
       <section className="kpis">
-        <Kpi loading={loading} icon="list" label="Éléments" value={items.length} sub="au total" spark={stats.daily.map(d => d.count)} />
-        <Kpi loading={loading} icon="calendar" label="7 derniers jours" value={stats.last7} delta={Math.max(0, stats.week - stats.prevWeek)} sub="vs semaine précédente" />
-        <Kpi loading={loading} icon="bolt" label="Série en cours" value={stats.streak} sub={stats.streak > 1 ? "jours d’affilée 🔥" : "jour actif"} />
-        <Kpi loading={loading} icon="globe" label="Documents publics" value={publicCount ?? 0} sub="collection public" />
+        <Kpi loading={loading} icon="list" label="Éléments" value={items.length} sub="au total" spark={stats.cumulative} />
+        <Kpi loading={loading} icon="calendar" label="7 derniers jours" value={stats.last7} delta={stats.week - stats.prevWeek} sub="vs semaine précédente" />
+        <Kpi loading={loading} icon="clock" label="Aujourd’hui" value={stats.today} delta={stats.today - stats.yesterday} sub="vs hier" />
+        <Kpi loading={loading} icon="bolt" label="Série en cours" value={stats.streak}
+          sub={stats.streak === 0 ? "aucune activité récente" : stats.streak > 1 ? "jours d’affilée" : "jour d’activité"} />
       </section>
 
       <section className="grid-2">

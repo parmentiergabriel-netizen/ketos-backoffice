@@ -66,6 +66,18 @@ Notes : Simplicité 5/10 · Intuitivité 5/10 · Beauté 7/10 · Technique 6/10.
 - Technique : migration Next 15 / firebase 12 / ESLint 9 ; en-têtes de sécurité (CSP…) toujours absents ; ajouter des tests visuels Playwright.
 
 ## Plan
-- **Lot 1 (~1 j)** : police, contrastes, menu compte + thème Système, delta/série/mini-courbe, retrait KPI publics et emojis, compteur conditionnel, titres d'onglet, palette au clavier.
+- ✅ **Lot 1 — fait** : police, contrastes, menu compte + thème Système, delta/série/mini-courbe, retrait KPI publics et emojis, compteur conditionnel, titres d'onglet, palette au clavier.
 - **Lot 2 (~3 j)** : tableau de bord compact, liste groupée, marée limitée, échelle typo, sombre étagé, barre mobile ancrée avec « + », vocabulaire métier.
 - **Lot 3 (~3 j)** : demande d'accès + page Équipe, Next 15 / firebase 12 / ESLint 9, en-têtes de sécurité, tests visuels en CI.
+
+### Lot 1 — détail des changements
+- **Polices** auto-hébergées via `@fontsource-variable/inter` et `@fontsource-variable/bricolage-grotesque` (pas d'appel réseau au build, contrairement à `next/font/google`) ; Bricolage pour h1/h2, chiffres des KPI et marque.
+- **Contrastes AA** : `--text-faint` #627387 (4,9:1 / 4,5:1) en clair, #72869C (≥ 4,8:1) en sombre ; accent clair #0A66D6 (blanc dessus 5,4:1) ; bouton principal en accent plein, texte marine en sombre (6,2:1) ; `--success` #0A7A5A ; nouveau `--warning`.
+- **Menu du compte** sur l'avatar (barre latérale et barre mobile) : thème Clair / Sombre / Auto, Rechercher, Nouvel élément, Se déconnecter ; fermeture par Échap / clic extérieur. Libellé « Espace » retiré.
+- **Thème « Auto »** : `setThemePref("system")` retire le forçage et l'entrée `localStorage` ; suit les changements de réglage de l'appareil.
+- **Tableau de bord** : delta signé (↑ vert, ↓ orange, = gris) ; série comptée jusqu'à hier si rien aujourd'hui ; mini-courbe cumulée (min → max) ; KPI « Documents publics » remplacé par « Aujourd'hui · vs hier » (plus de requête `getCountFromServer`) ; emojis retirés.
+- **Éléments** : compteur affiché à partir de 160 caractères (« 30 caractères restants » / « 3 caractères de trop »), « Entrée pour valider » retiré ; toasts sans emoji.
+- **Titres d'onglet** : « Tableau de bord · Ketos », « Éléments · Ketos », « Connexion · Ketos », « Accès en attente · Ketos »…
+- **Palette ⌘K** : option active gardée visible (`scrollIntoView`), `combobox` / `listbox` / `option` + `aria-activedescendant`, `aria-modal`, Tab bloqué dans la palette, Début/Fin, focus rendu à la fermeture.
+
+Vérifié : `tsc`, `next lint` (0 alerte), `next build`, `npm test` (règles) ✅ ; captures sur copie locale (menu ordinateur/mobile, clair/sombre, palette au clavier, compteur).

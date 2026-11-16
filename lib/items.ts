@@ -1,5 +1,5 @@
 import {
-  collection, deleteDoc, doc, getCountFromServer, onSnapshot, query, QueryDocumentSnapshot,
+  collection, deleteDoc, doc, onSnapshot, query, QueryDocumentSnapshot,
   serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
 import { getDb } from "./firebase";
@@ -37,11 +37,6 @@ export const createItem = (id: string, ownerId: string, title: string) =>
   setDoc(doc(getDb(), ITEMS_PATH, id), { title, ownerId, createdAt: serverTimestamp() });
 
 export const removeItem = (id: string) => deleteDoc(doc(getDb(), ITEMS_PATH, id));
-
-export async function countPublic(): Promise<number> {
-  const snap = await getCountFromServer(collection(getDb(), "public"));
-  return snap.data().count;
-}
 
 // ---------- Utilitaires d'affichage ----------
 const DAY = 86_400_000;

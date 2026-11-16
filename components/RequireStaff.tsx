@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { ReactNode, useState } from "react";
 import { loginGoogle, logout } from "../lib/auth";
 import { useAuth } from "./AuthProvider";
@@ -35,9 +36,10 @@ function loginErrorMessage(e: any): ReactNode | null {
 }
 
 /** Décor commun : aurores, grille, bulles qui remontent et vagues. */
-function Ocean({ children }: { children: ReactNode }) {
+function Ocean({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="gate">
+      <Head><title>{`${title} · Ketos`}</title></Head>
       <div className="gate-aurora" aria-hidden="true"><span /><span /><span /></div>
       <div className="gate-grid" aria-hidden="true" />
       <div className="bubbles" aria-hidden="true">
@@ -83,7 +85,7 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 
   if (auth.status === "loading")
     return (
-      <Ocean>
+      <Ocean title="Chargement">
         <div className="loader-ring" role="status" aria-label="Chargement">
           <div className="logo-badge" style={{ width: 64, height: 64, borderRadius: 20 }}><Whale size={36} /></div>
         </div>
@@ -92,7 +94,7 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 
   if (auth.status === "error")
     return (
-      <Ocean>
+      <Ocean title="Configuration requise">
         <div className="gate-card">
           <div className="stagger">
             <div className="logo-badge"><Whale size={44} /></div>
@@ -105,7 +107,7 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 
   if (auth.status === "signedOut")
     return (
-      <Ocean>
+      <Ocean title="Connexion">
         <div className="gate-card">
           <div className="stagger">
             <div className="logo-badge"><Whale size={44} /></div>
@@ -123,7 +125,7 @@ export function RequireStaff({ children }: { children: ReactNode }) {
 
   if (auth.status === "forbidden")
     return (
-      <Ocean>
+      <Ocean title="Accès en attente">
         <div className="gate-card">
           <div className="stagger">
             <div className="logo-badge" style={{ background: "linear-gradient(135deg,#ff8a5b,#e5484d)" }}><Icon name="lock" size={34} color="#fff" /></div>
